@@ -3,11 +3,20 @@ name = "mini-gpt"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = []
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.7.1",
+]
 
 [dependency-groups]
 dev = [
+    "ipykernel>=6.29.5",
+    "ipython>=8.37.0",
+    "jupyterlab>=4.4.4",
     "pre-commit>=4.2.0",
     "ruff>=0.12.4",
 ]
+
+[project.scripts]
+mini-gpt = "mini_gpt.cli:main"
+

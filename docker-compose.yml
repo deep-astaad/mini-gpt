@@ -1,0 +1,23 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mini-gpt-dev
+    env_file: .env
+    volumes:
+      - ./:/workspace:delegated
+      - hf-cache:${HF_HOME:-/workspace/.cache/huggingface}
+    ports:
+      - "8888:8888"
+    # Use existing entrypoint (tini) and override only CMD logic if you need password/token switch:
+    command: >
+      jupyter lab --allow-root
+                  --ServerApp.token=${JUPYTER_TOKEN:-''}
+                  --ip=0.0.0.0 --no-browser --port=8888
+
+    stdin_open: true     # ← these two lines must line up
+    tty: true            #   with *command*, not be indented under it
+
+volumes:
+  hf-cache:
