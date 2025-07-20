@@ -3,7 +3,6 @@
 x-base-service: &base-service
   volumes:
     - ./:/workspace:delegated
-    - hf-cache:/workspace/.cache/huggingface
 
   command: >
     jupyter lab --allow-root
@@ -14,8 +13,6 @@ x-base-service: &base-service
   stdin_open: true
   environment:
     JUPYTER_TOKEN: ${JUPYTER_TOKEN}
-    HF_HOME: /workspace/.cache/huggingface
-    TRANSFORMERS_CACHE: /workspace/.cache/huggingface
     
   networks:
     - traefik
@@ -49,9 +46,6 @@ services:
       <<: *base-build
       target: runtime-cuda
     gpus: all
-
-volumes:
-  hf-cache:
 
 
 networks:
