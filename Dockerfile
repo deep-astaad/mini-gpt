@@ -1,35 +1,10 @@
-# ---------- Base w/ build tools ----------
-FROM python:3.12-slim-bookworm AS build
+## UNIVERSAL PYTHON 3.12 BASE & COMMON ASSETS
 
-# Install uv early (binary copy)
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+ARG PYTHON_VERSION=3.12
+ARG APP_NAME=mini-gpt
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1 \
-    UV_CACHE_DIR=/root/.cache/uv \
-    UV_PROJECT_ENVIRONMENT=/usr/local
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      curl build-essential git ca-certificates tini \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /workspace
-
-# Leverage layer caching for deps
-COPY pyproject.toml uv.lock* ./
-RUN --mount=type=cache,target=/root/.cache/uv uv sync
-
-# Copy source
-COPY src ./src
-COPY README.md ./
-# (Optional) Remove if not needed; uv already compiled packages
-# RUN python -m compileall -q src
-
-# ---------- Runtime ----------
-FROM python:3.12-slim-bookworm AS runtime
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
+# Stage with official Python (source of /usr/local tree we will copy elsewhere)
+FROM python:${PYTHON_VERSION}-slim-bookworm AS py312-base
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \

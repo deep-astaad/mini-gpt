@@ -1,23 +1,43 @@
-services:
-  dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: mini-gpt-dev
-    env_file: .env
-    volumes:
-      - ./:/workspace:delegated
-      - hf-cache:${HF_HOME:-/workspace/.cache/huggingface}
-    ports:
-      - "8888:8888"
-    # Use existing entrypoint (tini) and override only CMD logic if you need password/token switch:
-    command: >
-      jupyter lab --allow-root
-                  --ServerApp.token=${JUPYTER_TOKEN:-''}
-                  --ip=0.0.0.0 --no-browser --port=8888
+# Reusable non-build settings
+x-base-service: &base-service
+  volumes:
+    - ./:/workspace:delegated
+    - hf-cache:/workspace/.cache/huggingface
+  ports:
+    - "8888:8888"
+  env_file:
+    - .env
+  command: >
+    jupyter lab --allow-root
+                --ip=0.0.0.0
+                --no-browser
+                --port=8888
+  tty: true
+  stdin_open: true
+  environment:
+    HF_HOME: /workspace/.cache/huggingface
+    TRANSFORMERS_CACHE: /workspace/.cache/huggingface
 
-    stdin_open: true     # ← these two lines must line up
-    tty: true            #   with *command*, not be indented under it
+# Reusable build fragment
+x-base-build: &base-build
+  context: .
+  dockerfile: Dockerfile
+
+services:
+  dev-cpu:
+    <<: *base-service
+    profiles: ["cpu"]
+    build:
+      <<: *base-build
+      target: runtime-cpu
+
+  dev-cuda:
+    <<: *base-service
+    profiles: ["cuda"]
+    build:
+      <<: *base-build
+      target: runtime-cuda
+    gpus: all
 
 volumes:
   hf-cache:
