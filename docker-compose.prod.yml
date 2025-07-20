@@ -1,17 +1,10 @@
-version: "3.9"
-
 services:
   app:
     image: mini-gpt:prod
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        UID: 1000
-        GID: 1000
     env_file: .env
-    environment:
-      JUPYTER_TOKEN: ""   # disable
     command: ["python", "-m", "mini_gpt.cli", "--help"]
     read_only: true
     tmpfs:
