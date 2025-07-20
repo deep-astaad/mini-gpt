@@ -7,28 +7,63 @@ ARG APP_NAME=mini-gpt
 FROM python:${PYTHON_VERSION}-slim-bookworm AS py312-base
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1 \
     UV_CACHE_DIR=/root/.cache/uv \
     UV_PROJECT_ENVIRONMENT=/usr/local \
     HF_HOME=/workspace/.cache/huggingface \
     TRANSFORMERS_CACHE=/workspace/.cache/huggingface
 
-# tini only (no build chain)
-RUN apt-get update && apt-get install -y --no-install-recommends tini && \
-    rm -rf /var/lib/apt/lists/*
+# Install core build tooling only once here (reused when copied)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential git curl ca-certificates tini \
+    && rm -rf /var/lib/apt/lists/*
 
+# Put project sources in their own stage so we can copy them to each build variant efficiently
+FROM py312-base AS sources
 WORKDIR /workspace
+COPY pyproject.toml uv.lock* README.md ./
+COPY src ./src
 
-# Copy Python installation (packages + scripts)
-# COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=build /usr/local /usr/local
+# Provide uv binary in its own stage for easy COPY (faster cache churn if uv updates)
+FROM ghcr.io/astral-sh/uv:latest AS uv-bin
 
-# Copy project
-COPY --from=build /workspace /workspace
 
-# Ensure cache dirs exist & writable
-RUN mkdir -p .cache/huggingface .jupyter
+## BUILD VARIANTS
 
+### CPU (and general dev) variant
+FROM py312-base AS build-cpu
+COPY --from=uv-bin /uv /uvx /bin/
+WORKDIR /workspace
+COPY --from=sources /workspace /workspace
+RUN uv sync --extra cpu
+
+
+### CUDA variant
+# Use an NVIDIA runtime base for the CUDA user-space libs; copy Python 3.12 from py312-base; copy uv binary
+FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04 AS build-cuda
+COPY --from=py312-base /usr/local /usr/local
+COPY --from=uv-bin /uv /uvx /bin/
+WORKDIR /workspace
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      git curl ca-certificates tini \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=sources /workspace /workspace
+RUN uv sync --extra cu128
+
+
+## RUNTIME STAGES
+
+# Common runtime env variables
+ARG APP_NAME=mini-gpt
+ARG APP_VARIANT
+
+FROM build-cpu AS runtime-cpu
+ENV APP_VARIANT=cpu APP_NAME=${APP_NAME}
 EXPOSE 8888
 ENTRYPOINT ["/usr/bin/tini","--"]
-CMD ["jupyter", "lab", "--ip=0.0.0.0", "--no-browser", "--port=8888"]
+CMD ["jupyter","lab","--ip=0.0.0.0","--no-browser","--port=8888"]
+
+FROM build-cuda AS runtime-cuda
+ENV APP_VARIANT=cuda APP_NAME=${APP_NAME}
+EXPOSE 8888
+ENTRYPOINT ["/usr/bin/tini","--"]
+CMD ["jupyter","lab","--ip=0.0.0.0","--no-browser","--port=8888"]
