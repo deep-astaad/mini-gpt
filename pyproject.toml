@@ -60,4 +60,3 @@ explicit = true
 
 [project.scripts]
 mini-gpt = "mini_gpt.cli:main"
-

@@ -1,5 +1,3 @@
-version: "3.9"
-
 # Reusable non-build settings
 x-base-service: &base-service
   volumes:

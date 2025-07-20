@@ -1,46 +1,58 @@
-version: "3.9"
+
+# Reusable non-build settings
+x-base-service: &base-service
+  volumes:
+    - ./:/workspace:delegated
+    - hf-cache:/workspace/.cache/huggingface
+
+  command: >
+    jupyter lab --allow-root
+                --ip=0.0.0.0
+                --no-browser
+                --port=8888
+  tty: true
+  stdin_open: true
+  environment:
+    JUPYTER_TOKEN: ${JUPYTER_TOKEN}
+    HF_HOME: /workspace/.cache/huggingface
+    TRANSFORMERS_CACHE: /workspace/.cache/huggingface
+    
+  networks:
+    - traefik
+
+  labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.minigpt.rule=Host(`minigpt.${DOMAIN}`)"
+    - "traefik.http.routers.minigpt.entrypoints=websecure"
+    - "traefik.http.routers.minigpt.tls.certresolver=cloudflare"
+    - "traefik.http.services.minigpt.loadbalancer.server.port=8888"
+    
+
+
+# Reusable build fragment
+x-base-build: &base-build
+  context: .
+  dockerfile: Dockerfile
 
 services:
-  dev-gpu:
+  dev-cpu:
+    <<: *base-service
+    profiles: ["cpu"]
     build:
-      context: .
-      dockerfile: Dockerfile.gpu
-    container_name: mini-gpt-dev-gpu
-    env_file: .env
-    volumes:
-      - ./:/workspace:delegated
-      - hf-cache:${HF_HOME:-/workspace/.cache/huggingface}
-    ports:
-      - "8888:8888"
-    # Modern compose GPU support:
-    deploy: # (ignored outside swarm; optional)
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    gpus: all  # Simpler, works in non-swarm recent Docker
-    command: >
-      sh -c '
-        if [ -n "$$JUPYTER_PASSWORD_HASH" ]; then
-          jupyter lab --NotebookApp.token= --NotebookApp.password=$$JUPYTER_PASSWORD_HASH --ip=0.0.0.0 --no-browser --port=8888
-        else
-          jupyter lab --NotebookApp.token=$$JUPYTER_TOKEN --ip=0.0.0.0 --no-browser --port=8888
-        fi
-      '
-    networks:
-      - traefik
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.minigpt.rule=Host(minigpt.${DOMAIN})"
-      - "traefik.http.routers.minigpt.entrypoints=websecure"
-      - "traefik.http.routers.minigpt.tls.certresolver=cloudflare"
-      - "traefik.http.services.minigpt.loadbalancer.server.port=8888"
+      <<: *base-build
+      target: runtime-cpu
 
+  dev-cuda:
+    <<: *base-service
+    profiles: ["cuda"]
+    build:
+      <<: *base-build
+      target: runtime-cuda
+    gpus: all
 
 volumes:
   hf-cache:
+
 
 networks:
   traefik:

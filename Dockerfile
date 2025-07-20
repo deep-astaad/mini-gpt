@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.7
 ## UNIVERSAL PYTHON 3.12 BASE & COMMON ASSETS
 
 ARG PYTHON_VERSION=3.12
@@ -41,12 +40,22 @@ RUN uv sync --extra cpu
 ### CUDA variant
 # Use an NVIDIA runtime base for the CUDA user-space libs; copy Python 3.12 from py312-base; copy uv binary
 FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04 AS build-cuda
+
 COPY --from=py312-base /usr/local /usr/local
 COPY --from=uv-bin /uv /uvx /bin/
-WORKDIR /workspace
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_CACHE_DIR=/root/.cache/uv \
+    UV_PROJECT_ENVIRONMENT=/usr/local \
+    HF_HOME=/workspace/.cache/huggingface \
+    TRANSFORMERS_CACHE=/workspace/.cache/huggingface
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
       git curl ca-certificates tini \
     && rm -rf /var/lib/apt/lists/*
+    
+WORKDIR /workspace
 COPY --from=sources /workspace /workspace
 RUN uv sync --extra cu128
 
@@ -68,4 +77,3 @@ ENV APP_VARIANT=cuda APP_NAME=${APP_NAME}
 EXPOSE 8888
 ENTRYPOINT ["/usr/bin/tini","--"]
 CMD ["jupyter","lab","--ip=0.0.0.0","--no-browser","--port=8888"]
-
