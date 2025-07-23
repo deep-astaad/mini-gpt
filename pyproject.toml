@@ -3,11 +3,60 @@ name = "mini-gpt"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = []
 
 [dependency-groups]
 dev = [
+    "ipykernel>=6.29.5",
+    "ipython>=8.37.0",
+    "jupyterlab>=4.4.4",
     "pre-commit>=4.2.0",
     "ruff>=0.12.4",
 ]
+
+### only use cpu   ->    uv sync --extra cpu
+### use nvidia gpu ->    uv sync --extra cu128
+
+[project.optional-dependencies]
+cpu = [
+  "torch>=2.7.0",
+  "torchaudio>=2.7.0",
+  "torchvision>=0.22.0",
+]
+cu128 = [
+  "torch>=2.7.0",
+  "torchaudio>=2.7.0",
+  "torchvision>=0.22.0",
+]
+
+[tool.uv]
+conflicts = [
+  [
+    { extra = "cpu" },
+    { extra = "cu128" },
+  ],
+]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cu128", extra = "cu128" },
+]
+torchvision = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cu128", extra = "cu128" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[project.scripts]
+mini-gpt = "mini_gpt.cli:main"

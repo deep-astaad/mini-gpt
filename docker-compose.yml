@@ -1,0 +1,36 @@
+# Reusable non-build settings
+x-base-service: &base-service
+  volumes:
+    - ./:/workspace:delegated
+  ports:
+    - "8888:8888"
+  env_file:
+    - .env
+  command: >
+    jupyter lab --allow-root
+                --ip=0.0.0.0
+                --no-browser
+                --port=8888
+  tty: true
+  stdin_open: true
+
+# Reusable build fragment
+x-base-build: &base-build
+  context: .
+  dockerfile: Dockerfile
+
+services:
+  dev-cpu:
+    <<: *base-service
+    profiles: ["cpu"]
+    build:
+      <<: *base-build
+      target: runtime-cpu
+
+  dev-cuda:
+    <<: *base-service
+    profiles: ["cuda"]
+    build:
+      <<: *base-build
+      target: runtime-cuda
+    gpus: all

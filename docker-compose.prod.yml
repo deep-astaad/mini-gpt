@@ -1,0 +1,11 @@
+services:
+  app:
+    image: mini-gpt:prod
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    command: ["python", "-m", "mini_gpt.cli", "--help"]
+    read_only: true
+    tmpfs:
+      - /tmp
