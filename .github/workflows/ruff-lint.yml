@@ -1,0 +1,32 @@
+name: Ruff Lint & Format Check
+
+on:
+  push:
+    paths:
+      - '**.py'
+  pull_request:
+    paths:
+      - '**.py'
+
+jobs:
+  ruff-check:
+    name: Ruff Lint & Format
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff Lint (check only)
+        run: ruff check .
+
+      - name: Run Ruff Format (check only)
+        run: ruff format --check .
